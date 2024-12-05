@@ -1,0 +1,69 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity rom_16x8 is
+    port (
+        clock    : in std_logic;                    -- Señal de reloj
+        address  : in std_logic_vector(7 downto 0); -- Dirección de 8 bits
+        data_out : out std_logic_vector(7 downto 0) -- Salida de datos de 8 bits
+    );
+end entity rom_16x8;
+
+-- Arquitectura de la entidad
+architecture rom_16x8_sync_arch of rom_16x8 is
+
+    -- Constantes que representan instrucciones
+    constant LDA_IMM : std_logic_vector(7 downto 0) := x"86";
+    constant LDA_DIR : std_logic_vector(7 downto 0) := x"87";
+    constant LDB_IMM : std_logic_vector(7 downto 0) := x"88";
+    constant LDB_DIR : std_logic_vector(7 downto 0) := x"89";
+    constant STA_DIR : std_logic_vector(7 downto 0) := x"96";
+    constant STB_DIR : std_logic_vector(7 downto 0) := x"97";
+
+    -- Declaración de la ROM como un arreglo constante
+    type rom_type is array (0 to 127) of std_logic_vector(7 downto 0);
+    constant ROM : rom_type := (
+        0 => LDA_IMM,
+        1 => x"11",
+        2 => x"22",
+        3 => STA_DIR,
+        4 => x"44",
+        5 => x"55",
+        6 => x"66",
+        others => x"FA" -- Relleno de las direcciones no usadas
+    );
+
+    -- Señal para habilitar el acceso
+    signal EN : std_logic;
+
+begin
+
+    -- Proceso para habilitar el acceso a la memoria
+    enable : process(address)
+    begin
+        -- Verifica si la dirección está dentro del rango permitido
+        if ((to_integer(unsigned(address)) >= 0) and
+            (to_integer(unsigned(address)) <= 127)) then
+            EN <= '1'; -- Habilitación de acceso
+        else
+            EN <= '0'; -- Acceso deshabilitado
+        end if;
+    end process;
+
+    -- Proceso para manejar la lectura sincronizada con el reloj
+    memory : process(clock)
+    begin
+        if rising_edge(clock) then -- Detecta flanco de subida del reloj
+            if EN = '1' then
+                -- Convierte la dirección a entero y accede a la ROM
+                data_out <= ROM(to_integer(unsigned(address)));
+            else
+                -- Si no está habilitado, salida por defecto
+                data_out <= (others => '0');
+            end if;
+        end if;
+    end process;
+
+end architecture rom_16x8_sync_arch;
+
